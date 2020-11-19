@@ -457,34 +457,18 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-/*	
 	p = sched_get();
 	acquire(&p->lock);
+	// Switch to chosen process.  It is the process's job
+    // to release its lock and then reacquire it
+    // before jumping back to us.
 	p->state = RUNNING;
 	c->proc = p;
 	swtch(&c->scheduler, &p->context);
+	// Process is done running for now.
+    // It should have changed its p->state before coming back.
 	c->proc = 0;
 	release(&p->lock);
-
-*/
-//
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->scheduler, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
-      release(&p->lock);
-    }
-//
 
   }
 }

@@ -68,6 +68,7 @@ sched_get()
 {
 	int i;
 	struct proc* p;
+	sched_L:
 	acquire(&queue.lock_active);
 	for(i=0;i<40;i++)
 	{	
@@ -88,8 +89,28 @@ sched_get()
 		release(&queue.lock[queue.sched_active][i]);
 	}
 	queue.sched_active = 1 - queue.sched_active;
+	
+	for(i=0;i<40;i++)
+	{	
+		acquire(&queue.lock[queue.sched_active][i]);
+		if(queue.q[queue.sched_active][i]!=0)
+		{
+			p = queue.q[queue.sched_active][i];
+			p->last_queue = queue.sched_active;
+			queue.q[queue.sched_active][i] = queue.q[queue.sched_active][i]->next;
+			if(p->next==0)
+			{
+				queue.qlast[queue.sched_active][i]=0;
+			}
+			release(&queue.lock[queue.sched_active][i]);
+			release(&queue.lock_active);
+			return p;
+		}
+		release(&queue.lock[queue.sched_active][i]);
+	}
+	
 	release(&queue.lock_active);
-	return sched_get();
+	goto sched_L;
 }
 
 
