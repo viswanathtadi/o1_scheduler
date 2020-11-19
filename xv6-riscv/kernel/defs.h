@@ -182,5 +182,10 @@ void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr();
 
+// sched.c
+void  			sched_init(void);
+void 			sched_insert(struct proc*,int);
+struct proc*    sched_get();
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
