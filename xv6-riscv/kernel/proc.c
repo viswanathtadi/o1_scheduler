@@ -110,6 +110,7 @@ found:
     release(&p->lock);
     return 0;
   }
+  
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -119,6 +120,9 @@ found:
   memset(&p->context, 0, sizeof p->context);
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+  
+  // Make static priority = 5
+  p->priority = 20;
 
   return p;
 }
