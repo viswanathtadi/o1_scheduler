@@ -103,6 +103,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  uint64 priority;			   // priority of the process
-  struct proc* next;		   // next process pointer
+  uint64 priority;			   // static priority of the process
+  struct proc* next;		   // next process pointer in sched_queue
+  int last_queue;			   // queue from which it was removed
 };

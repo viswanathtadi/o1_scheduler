@@ -28,7 +28,7 @@ main()
     iinit();         // inode cache
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
-    sched_init();	 // Initialising scheduler
+    sched_init();	 // initializing scheduler structures
     userinit();      // first user process
     __sync_synchronize();
     started = 1;

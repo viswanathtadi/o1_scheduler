@@ -218,6 +218,8 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  
+  sched_insert(p,1);
 
   release(&p->lock);
 }
@@ -283,6 +285,8 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
+  
+  sched_insert(np,1);
 
   release(&np->lock);
 
@@ -453,6 +457,17 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+/*	
+	p = sched_get();
+	acquire(&p->lock);
+	p->state = RUNNING;
+	c->proc = p;
+	swtch(&c->scheduler, &p->context);
+	c->proc = 0;
+	release(&p->lock);
+
+*/
+//
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
@@ -469,6 +484,8 @@ scheduler(void)
       }
       release(&p->lock);
     }
+//
+
   }
 }
 
@@ -506,6 +523,7 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  sched_insert(p,0);
   sched();
   release(&p->lock);
 }
@@ -576,6 +594,7 @@ wakeup(void *chan)
     acquire(&p->lock);
     if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      sched_insert(p,1);
     }
     release(&p->lock);
   }
@@ -590,6 +609,7 @@ wakeup1(struct proc *p)
     panic("wakeup1");
   if(p->chan == p && p->state == SLEEPING) {
     p->state = RUNNABLE;
+    sched_insert(p,1);
   }
 }
 
@@ -599,8 +619,8 @@ wakeup1(struct proc *p)
 int
 kill(int pid)
 {
+  printf("0\n");
   struct proc *p;
-
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if(p->pid == pid){
@@ -608,6 +628,7 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+        sched_insert(p,1);
       }
       release(&p->lock);
       return 0;

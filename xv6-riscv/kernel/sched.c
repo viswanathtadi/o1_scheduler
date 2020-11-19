@@ -1,5 +1,3 @@
-//Linked list implementation
-
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -8,12 +6,15 @@
 #include "proc.h"
 #include "defs.h"
 
+//Linked list implementation
 
 struct sched_queue
 {
 	struct proc* q[2][40];
 	struct proc* qlast[2][40];
 	int sched_active;
+	struct spinlock lock[2][40];
+	struct spinlock lock_active;
 };
 
 struct sched_queue queue;
@@ -36,14 +37,19 @@ sched_insert(struct proc* curp,int active)
 	curp->next = 0;
 	int p = curp->priority;
 	int index;
-	if(queue.sched_active != active)
+	
+	acquire(&queue.lock_active);
+	if(active == 1)
 	{
-		index=0;
+		index = queue.sched_active;
 	}
-	else if(queue.sched_active == active)
+	else if (active == 0)
 	{
-		index=1;	
+		index = 1 - curp->last_queue;
 	}
+	release(&queue.lock_active);
+	
+	acquire(&queue.lock[index][p]);
 	if(queue.q[index][p]==0)
 	{
 		queue.q[index][p]=curp;
@@ -54,6 +60,7 @@ sched_insert(struct proc* curp,int active)
 		queue.qlast[index][p]->next=curp;
 		queue.qlast[index][p]=curp;
 	}
+	release(&queue.lock[index][p]);
 }
 
 struct proc* 
@@ -61,26 +68,29 @@ sched_get()
 {
 	int i;
 	struct proc* p;
+	acquire(&queue.lock_active);
 	for(i=0;i<40;i++)
-	{
+	{	
+		acquire(&queue.lock[queue.sched_active][i]);
 		if(queue.q[queue.sched_active][i]!=0)
 		{
 			p = queue.q[queue.sched_active][i];
+			p->last_queue = queue.sched_active;
 			queue.q[queue.sched_active][i] = queue.q[queue.sched_active][i]->next;
 			if(p->next==0)
 			{
 				queue.qlast[queue.sched_active][i]=0;
 			}
+			release(&queue.lock[queue.sched_active][i]);
+			release(&queue.lock_active);
 			return p;
 		}
+		release(&queue.lock[queue.sched_active][i]);
 	}
 	queue.sched_active = 1 - queue.sched_active;
+	release(&queue.lock_active);
 	return sched_get();
 }
-
-
-
-
 
 
 
