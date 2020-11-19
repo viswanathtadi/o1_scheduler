@@ -71,8 +71,35 @@ exec(char *path, char **argv)
   uvmclear(pagetable, sz-2*PGSIZE);
   sp = sz;
   stackbase = sp - PGSIZE;
+  
+  // find the value of argc
+  int argcval=0;
+  for(argcval = 0; argv[argcval]; argcval++);
 
   // Push argument strings, prepare rest of stack in ustack.
+  if(argcval > 2 && strlen(argv[argcval-2])==5 && argv[argcval-2][0]=='-' && argv[argcval-2][1]=='n' && argv[argcval-2][2]=='i' && argv[argcval-2][3]=='c' && argv[argcval-2][4]=='e')
+  {
+      if(strlen(argv[argcval-1])<=2)
+      {
+      	 if(strlen(argv[argcval-1])==2 && argv[argcval-1][0]>='0' && argv[argcval-1][0]<='9' && argv[argcval-1][1]>='0' && argv[argcval-1][1]<='9')
+      	 {
+      	 	int val=0;
+      	 	val+=(argv[argcval-1][0]-'0') * 10;
+      	 	val+=(argv[argcval-1][1]-'0');
+      	 	if(val<=39 && val>=0)
+      	 	p->priority=val;
+      	 }
+      	 else if(strlen(argv[argcval-1])==1 && argv[argcval-1][0]>='0' && argv[argcval-1][0]<='9')
+      	 {
+      	 	int val=0;
+      	 	val+=(argv[argcval-1][0]-'0');
+      	 	if(val<=39 && val>=0)
+      	 	p->priority=val;
+      	 }
+      }
+      argcval-=2;
+      argv[argcval] = 0;
+  }
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;

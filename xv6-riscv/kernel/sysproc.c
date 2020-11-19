@@ -95,3 +95,25 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_setpriority(void)
+{
+	int n;
+  if(argint(0, &n) < 0)
+    return -1;
+  struct proc* p = myproc();
+  if(n>39 || n<0)return -1;
+  p->priority=n;
+  return 0; 
+}
+
+uint64
+sys_getpriority(void)
+{
+	struct proc* p = myproc();
+	int n;
+	n = p->priority;
+	return n;
+}
+

@@ -3,6 +3,8 @@
 #include "user/user.h"
 
 int main(int argc, char* argv[]) {
-	sleep(2);
+printf("%d\n",getpriority());
+	setpriority(10);
+	printf("%d\n",getpriority());
 	exit(0);
 }
