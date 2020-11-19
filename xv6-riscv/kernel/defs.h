@@ -183,8 +183,8 @@ void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr();
 
 // sched.c
-void  			sched_init(void);
-void 			sched_insert(struct proc*,int);
+void  			    sched_init(void);
+void 	      		sched_insert(struct proc*,int);
 struct proc*    sched_get();
 
 // number of elements in fixed-size array
