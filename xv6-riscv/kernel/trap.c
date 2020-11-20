@@ -16,6 +16,8 @@ void kernelvec();
 
 extern int devintr();
 
+extern int timeslice;  //remove later///////////////
+
 void
 trapinit(void)
 {
@@ -144,9 +146,16 @@ kerneltrap()
     panic("kerneltrap: interrupts enabled");
 
   if((which_dev = devintr()) == 0){
-    printf("scause %p\n", scause);
-    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-    panic("kerneltrap");
+    if (scause == 9) {
+      w_sepc(sepc+4);
+      w_sstatus(sstatus);
+      *(uint64*)CLINT_MTIMECMP(cpuid()) += timeslice;
+      return;
+    } else {
+      printf("scause %p\n", scause);
+      printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+      panic("kerneltrap");
+    }
   }
 
   // give up the CPU if this is a timer interrupt.

@@ -20,6 +20,7 @@ static void wakeup1(struct proc *chan);
 
 extern char trampoline[]; // trampoline.S
 
+int timeslice;
 
 void
 procinit(void)
@@ -459,6 +460,8 @@ scheduler(void)
     intr_on();
 
 	p = sched_get();
+	timeslice = 2000000 - 1000000;
+	asm volatile("ecall");
 	acquire(&p->lock);
     
 	// Switch to chosen process.  It is the process's job
