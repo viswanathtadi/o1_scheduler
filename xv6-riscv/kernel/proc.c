@@ -20,10 +20,6 @@ static void wakeup1(struct proc *chan);
 
 extern char trampoline[]; // trampoline.S
 
-extern uint64 *mscratch0;
-
-// in sched_timer.S, calls sched_timer().
-void sched_timer();
 
 void
 procinit(void)
@@ -464,11 +460,6 @@ scheduler(void)
 
 	p = sched_get();
 	acquire(&p->lock);
-	// Setting timer interrupt
-	int id = cpuid();
-	uint64 *scratch = &mscratch0[32 * id];
-    scratch[5] = 2000000 - 1000000;
-    sched_timer();
     
 	// Switch to chosen process.  It is the process's job
     // to release its lock and then reacquire it
