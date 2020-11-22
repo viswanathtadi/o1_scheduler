@@ -20,8 +20,6 @@ static void wakeup1(struct proc *chan);
 
 extern char trampoline[]; // trampoline.S
 
-int timeslice;
-
 void
 procinit(void)
 {
@@ -125,6 +123,8 @@ found:
   
   // Make static priority = 5
   p->priority = 20;
+  p->total_runtime = 0;
+  p->total_sleeptime = 0;
 
   return p;
 }
@@ -377,6 +377,7 @@ exit(int status)
   // Parent might be sleeping in wait().
   wakeup1(original_parent);
 
+  p->total_runtime += *(uint64*)CLINT_MTIME - p->running_since;
   p->xstate = status;
   p->state = ZOMBIE;
 
@@ -459,14 +460,25 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+	// get next process
 	p = sched_get();
-	timeslice = 2000000 - 1000000;
-	asm volatile("ecall");
+	
+	// timeslice calculation
+	int timeslice;
+	if(p->dynamic_priority < 20)
+		timeslice = (40-p->dynamic_priority)*500000;
+	else
+		timeslice = (40-p->dynamic_priority)*250000;
+		
+	*(uint64*)CLINT_MTIMECMP(cpuid()) = *(uint64*)CLINT_MTIME + timeslice;
+	
 	acquire(&p->lock);
     
 	// Switch to chosen process.  It is the process's job
     // to release its lock and then reacquire it
     // before jumping back to us.
+    // printf("%s,%d\n",p->name,p->dynamic_priority);
+    p->running_since = *(uint64*)CLINT_MTIME;
 	p->state = RUNNING;
 	c->proc = p;
 	swtch(&c->scheduler, &p->context);
@@ -511,6 +523,8 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+  p->total_runtime += *(uint64*)CLINT_MTIME - p->running_since;
+  //printf("%s,%d,%d\n",p->name,*(uint64*)CLINT_MTIME,p->running_since);
   p->state = RUNNABLE;
   sched_insert(p,0);
   sched();
@@ -557,6 +571,8 @@ sleep(void *chan, struct spinlock *lk)
   }
 
   // Go to sleep.
+  p->total_runtime += *(uint64*)CLINT_MTIME - p->running_since;
+  p->sleeping_since = *(uint64*)CLINT_MTIME;
   p->chan = chan;
   p->state = SLEEPING;
 
@@ -582,6 +598,7 @@ wakeup(void *chan)
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if(p->state == SLEEPING && p->chan == chan) {
+      p->total_sleeptime += *(uint64*)CLINT_MTIME - p->sleeping_since;
       p->state = RUNNABLE;
       sched_insert(p,1);
     }
@@ -597,6 +614,7 @@ wakeup1(struct proc *p)
   if(!holding(&p->lock))
     panic("wakeup1");
   if(p->chan == p && p->state == SLEEPING) {
+    p->total_sleeptime += *(uint64*)CLINT_MTIME - p->sleeping_since;
     p->state = RUNNABLE;
     sched_insert(p,1);
   }
@@ -616,6 +634,7 @@ kill(int pid)
       p->killed = 1;
       if(p->state == SLEEPING){
         // Wake process from sleep().
+        p->total_sleeptime += *(uint64*)CLINT_MTIME - p->sleeping_since;
         p->state = RUNNABLE;
         sched_insert(p,1);
       }

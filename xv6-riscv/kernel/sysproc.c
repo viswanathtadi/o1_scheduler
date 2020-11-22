@@ -113,7 +113,7 @@ sys_getpriority(void)
 {
 	struct proc* p = myproc();
 	int n;
-	n = p->priority;
+	n = p->dynamic_priority;
 	return n;
 }
 

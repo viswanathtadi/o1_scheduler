@@ -6,17 +6,19 @@ int main(int argc, char* argv[]) {
 	int i = 0;
 	while(i < 20){
 		int pid = fork();
-		if(pid == 0){
-			int j = 0;
-			while(j<=10000000){
-				j = j+1;
+		if(pid==0){
+			setpriority(20-i);
+			int pid2 = fork();
+			if(pid2 == 0){
+				exit(0);
+			}else{
+				wait(0);
 			}
+			printf("PID : %d : Priority : %d\n",getpid(),getpriority());
 			exit(0);
-		} else {
-			//printf("Child : %d\n",pid);
-		    wait(0);
 		}
 		i +=1;
 	}
+	printf("%d\n",getpid());
 	exit(0);
 }

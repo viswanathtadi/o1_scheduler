@@ -35,7 +35,15 @@ sched_insert(struct proc* curp,int active)
 {
 	if(active!=0 && active!=1)panic("active value out of bounds");
 	curp->next = 0;
-	int p = curp->priority;
+	int bonus = 4;
+	if(!(curp->total_sleeptime==0 && curp->total_runtime==0)){
+		bonus = ((curp->total_sleeptime*10)/(curp->total_sleeptime+curp->total_runtime));
+	}
+	int dprio = curp->priority - bonus + 4;
+	if(dprio <= 0) dprio = 0;
+	if(dprio >= 39) dprio = 39;
+	curp->dynamic_priority = dprio;
+	int p = curp->dynamic_priority;
 	int index;
 	
 	acquire(&queue.lock_active);
@@ -48,6 +56,8 @@ sched_insert(struct proc* curp,int active)
 		index = 1 - curp->last_queue;
 	}
 	release(&queue.lock_active);
+	
+	//printf("PID : %d , Queue : %d\n",curp->pid,p);
 	
 	acquire(&queue.lock[index][p]);
 	if(queue.q[index][p]==0)

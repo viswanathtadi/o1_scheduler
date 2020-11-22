@@ -131,6 +131,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_test\
+	$U/_test2\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -152,7 +153,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 
 QEMUEXTRA = -drive file=fs1.img,if=none,format=raw,id=x1 -device virtio-blk-device,drive=x1,bus=virtio-mmio-bus.1
@@ -177,7 +178,7 @@ qemu-gdb: $K/kernel .gdbinit fs.img
 
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
-	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c test.c\
+	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c test.c test2.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl \
 	.gdbinit.tmpl gdbutil\
