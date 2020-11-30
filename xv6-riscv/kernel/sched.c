@@ -35,11 +35,11 @@ sched_insert(struct proc* curp,int active)
 {
 	if(active!=0 && active!=1)panic("active value out of bounds");
 	curp->next = 0;
-	int bonus = 4;
+	int bonus = 5;
 	if(!(curp->total_sleeptime==0 && curp->total_runtime==0)){
-		bonus = ((curp->total_sleeptime*10)/(curp->total_sleeptime+curp->total_runtime));
+		bonus = ((curp->total_sleeptime*11)/(curp->total_sleeptime+curp->total_runtime));
 	}
-	int dprio = curp->priority - bonus + 4;
+	int dprio = curp->priority - bonus + 5;
 	if(dprio <= 0) dprio = 0;
 	if(dprio >= 39) dprio = 39;
 	curp->dynamic_priority = dprio;
