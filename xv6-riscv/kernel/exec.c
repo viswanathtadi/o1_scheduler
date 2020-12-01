@@ -77,11 +77,13 @@ exec(char *path, char **argv)
   for(argcval = 0; argv[argcval]; argcval++);
 
   // Push argument strings, prepare rest of stack in ustack.
-  if(argcval > 2 && strlen(argv[argcval-2])==5 && argv[argcval-2][0]=='-' && argv[argcval-2][1]=='n' && argv[argcval-2][2]=='i' && argv[argcval-2][3]=='c' && argv[argcval-2][4]=='e')
+  if(argcval > 2 && strlen(argv[argcval-2])==5 && argv[argcval-2][0]=='-' && argv[argcval-2][1]=='n'
+   && argv[argcval-2][2]=='i' && argv[argcval-2][3]=='c' && argv[argcval-2][4]=='e')
   {
       if(strlen(argv[argcval-1])<=2)
       {
-      	 if(strlen(argv[argcval-1])==2 && argv[argcval-1][0]>='0' && argv[argcval-1][0]<='9' && argv[argcval-1][1]>='0' && argv[argcval-1][1]<='9')
+      	 if(strlen(argv[argcval-1])==2 && argv[argcval-1][0]>='0' && argv[argcval-1][0]<='9' && 
+      	 argv[argcval-1][1]>='0' && argv[argcval-1][1]<='9')
       	 {
       	 	int val=0;
       	 	val+=(argv[argcval-1][0]-'0') * 10;
