@@ -1,0 +1,341 @@
+\documentclass[11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{anyfontsize}
+\usepackage{amsmath,amssymb}
+\usepackage{minted}
+\usepackage{listings}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{titling}
+\usepackage{caption}
+\usepackage[document]{ragged2e}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=false, %set true if you want colored links
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=black,  %choose some color if you want links to stand out
+}
+
+% Margins
+\usepackage[top=2.5cm, left=3cm, right=3cm, bottom=4.0cm]{geometry}
+
+\newcommand{\subtitle}[2]{%
+  \posttitle{%
+    \vskip0.65em
+    \par\end{center}
+    \begin{center}\huge#1\end{center}
+    \vskip13em
+    \begin{center}\fontsize{35}{42}\selectfont #2\end{center}
+    \vskip12em}%
+}
+
+\usepackage{ulem}
+\usepackage{xcolor,cancel}
+
+\newcommand\hcancel[2][black]{\setbox0=\hbox{$#2$}%
+\rlap{\raisebox{.45\ht0}{\textcolor{#1}{\rule{\wd0}{1pt}}}}#2} 
+
+\setlength{\parindent}{4em}
+\setlength{\parskip}{1em}
+% Get larger line spacing in table
+\newcommand{\tablespace}{\\[1.25mm]}
+\newcommand\Tstrut{\rule{0pt}{2.6ex}}         % = `top' strut
+\newcommand\tstrut{\rule{0pt}{2.0ex}}         % = `top' strut
+\newcommand\Bstrut{\rule[-0.9ex]{0pt}{0pt}}   % = `bottom' strut
+
+%%%%%%%%%%%%%%%%%
+%     Title     %
+%%%%%%%%%%%%%%%%%
+\title{\Huge{CS3500: Operating Systems}}
+\subtitle{Course Project Report}{An O(1) Scheduler for xv6}
+\author{
+  \fontsize{16}{20}\selectfont Gorre Venkata Satya Praveen\\[1ex]
+  \fontsize{16}{20}\selectfont CS18B017
+  \and
+  \fontsize{16}{20}\selectfont Viswanath Tadi\\[1ex]
+  \fontsize{16}{20}\selectfont CS18B047
+}
+\date{\vspace*{35mm}\fontsize{14}{16}\selectfont December 2, 2020}
+
+%%%%%%%%%%%%%%%%%
+%   Document    %
+%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\maketitle      % Create Title page
+\pagebreak
+
+\tableofcontents{}
+\vspace{20mm}
+
+%%%%%%%%%%%%%%%%%
+%   Section 1   %
+%%%%%%%%%%%%%%%%%
+\section{Native xv6 Scheduler}
+\hspace{10mm} \texttt{xv6} has the \texttt{Round Robin Scheduler}. The scheduler goes around in an infinite for-loop checking if any one of the processes is in \texttt{RUNNABLE} state and simply schedules whenever it finds any. Though functional, the scheduler is naive and does not support priority-based scheduling or behavior-based bonuses for processes.\\
+\vspace{3mm}
+\hspace{10mm} The scheduler loops through every process in the process list (\texttt{xv6} has a fixed number of predefined process structures for simplicity) to find a process to schedule. This can reduce the efficiency if the number of processes in \texttt{non-RUNNABLE} states is high. The scheduler can take O(N) time to find a \texttt{RUNNABLE} process.
+
+\vspace{10mm}
+%%%%%%%%%%%%%%%%%
+%   Section 2   %
+%%%%%%%%%%%%%%%%%
+\section{The O(1) Scheduler}
+\hspace{10mm} The O(1) scheduler was introduced in \texttt{Linux kernel release 2.6.0}. It was preceded by the O(N) scheduler.
+As the name suggests, the scheduling algorithm runs in constant time bounds, independent of the total number of processes. Just like its predecessor, the O(1) scheduler is also preemptive and hence supports multitasking. The O(1) scheduler supports priority-based scheduling and implements behavior-based bonuses using certain heuristics. It was superseded by the \texttt{CFS} scheduler from \texttt{Linux kernel release 2.6.23}, because of its dependence on complex heuristics.
+
+\pagebreak
+
+%%%%%%%%%%%%%%%%%
+%   Section 3   %
+%%%%%%%%%%%%%%%%%
+\section{Scheduling Algorithm and Heuristics}
+\hspace{10mm} O(1) scheduler achieves Priority-based scheduling through a pair of identical \texttt{multi- level queue} data structures, the active queue, and the passive queue. Each is a list of size \texttt{40} whose each element is a linked list, each of which holds the processes pertaining to priorities \texttt{100} through \texttt{139}.\\
+
+\vspace{2.5mm}
+\hspace{10mm} Whenever a new process is created, it is given a base priority of \texttt{120}. Processes can be given different priorities to start with, using the \texttt{nice} command. The new process is then added to the corresponding queue (priority 100 in queue 1 $\dots$ priority 139 in queue 40) of the active queue. Whenever the scheduler runs, it finds the first queue (within the active queues) that is non-empty (This operation is essentially O(1) in time because of the finite size of the active queue). It then schedules the first process in the picked queue. Whenever active queue becomes empty, the active queue and the passive queue are swapped.\\
+
+\vspace{2.5mm}
+\hspace{10mm} A process stops running when it's timeslice is over (involuntary timer interrupt) or it performs a system call like exit, wait, sleep, etc (voluntary system call). The process is now placed into the passive queue. It is placed into the linked list corresponding to its dynamic priority calculated as explained below.\\
+
+\vspace{2.5mm}
+\hspace{10mm} The O(1) scheduler has a notion of \texttt{dynamic priorities}. Whenever a process behaves like an \texttt{I/O bound process} and tends to sleep more, the scheduler gives the process a bonus. The more the process sleeps, the more the \texttt{bonus}. On the other hand, \texttt{CPU bound processes} are punished by a negative bonus. Higher bonus values allow the process to have lower dynamic priority (closer to \texttt{100}) and also higher timeslices, allowing better responsiveness of the system. Bonuses are scaled from \texttt{0} to \texttt{10}, with \texttt{0} being the bonus for the most CPU bound process and \texttt{10} being the bonus for the most I/O bound process.\\
+
+\vspace{2.5mm}
+\hspace{10mm} O(1) scheduler has a complex heuristic to calculate the bonus values. The scheduler monitors the \texttt{sleep cycles} of the processes closely. It maintains the time for which each process is in \texttt{SLEEPING} state and in \texttt{RUNNING} state. It calculates a notion of \texttt{average sleep time} and scales it to a bonus value.\\
+
+\begin{minted}{C}
+    p->sleep_avg += sleep_time;
+    p->sleep_avg -= run_time;
+    p->bonus = ((p->sleep_avg * MAX_BONUS) / MAX_SLEEP_AVG);
+    p->prio = p->stat_prio - bonus + MAX_BONUS/2;  //Value clipped to 100-139
+\end{minted}
+
+\hspace{10mm} The scheduler also supports dynamic timeslices to be allocated to processes. The processes which have a low dynamic priority (close to \texttt{100}) get a large dynamic timeslice. The scheduler does this to ensure that the process can complete its \texttt{IO burst} and preempt voluntarily. The timeslice allocated to each process depends on only its dynamic priority and is calculated using the below formula.\\
+
+\begin{minted}{C}
+    if(p->prio < 120) time_slice = (140 - p->prio) * 20;
+    else time_slice = (140 - p->prio) * 5;
+    //time_slice clipped to [MIN_TIMESLICE, INT_MAX)
+\end{minted}
+
+\pagebreak
+
+%%%%%%%%%%%%%%%%%
+%   Section 4   %
+%%%%%%%%%%%%%%%%%
+\section{O(1) for xv6}
+\hspace{10mm} The above algorithm for O(1) scheduler was implemented for the xv6 operating system as follows :\\
+\begin{itemize}
+    \item Priorities of a process in xv6 range from \texttt{0} to \texttt{39}, with priority \texttt{0} being the most preferred process for the scheduler and priority \texttt{40} being the least preferred.
+    \item New processes are given a base priority of \texttt{20}.
+    \item Support for nice command has been added. When running a program through shell, static priority can be initialized to $\theta$ as\\ \texttt{\$ my\_program -nice \boldmath$\theta$}
+    \item New system calls \texttt{setpriority} and \texttt{getpriority} are added to allow programs to change static priority when it runs (useful for test programs) and read dynamic priority as time progresses.
+    \item Bonus is calculated using the following formula. Bonus ranges from \texttt{0} to \texttt{10}, both inclusive. The formula is simple and can justify itself.\\
+    \begin{minted}{C}
+bonus = (p->total_sleeptime*11)/(p->total_sleeptime + p->total_runtime);
+p->dynamic_priority = p->priority - bonus + 5; // RHS is clipped to [0,39]
+    \end{minted}
+    \item Timeslice for a process starts just before the context switch. Hence, time lost in servicing the timer interrupt or scheduling overheads are not included in process's runtime. Timeslice allocated to a process is calculated as follows:
+    \begin{minted}{C}
+if(p->dynamic_priority < 20) timeslice = (40-p->dynamic_priority)*500000;
+else timeslice = (40-p->dynamic_priority)*250000;
+*(uint64*)CLINT_MTIMECMP(cpuid()) = *(uint64*)CLINT_MTIME + timeslice;
+    \end{minted}
+    \item Necessary locking is used while adding or removing processes from a queue to support multi-core scheduling.
+    \item New processes are added to the active run queue, while preempted processes (due to timer interrupt) are added to the passive run queue. Queues are switched when the active queue becomes empty.
+\end{itemize}
+
+\pagebreak
+
+%%%%%%%%%%%%%%%%%
+%   Section 5   %
+%%%%%%%%%%%%%%%%%
+\section{Change Log}
+
+\texttt{kernel/sched.c}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    struct sched_queue{
+	struct proc* q[2][40];       // First process* in each queue
+	struct proc* qlast[2][40];   // Last process* in each queue
+	int sched_active;            // Flag for currently active queue
+	struct spinlock lock[2][40]; // Necessary locking structures added
+	struct spinlock lock_active; };
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void sched_init(){}
+    // Initialises all queues in both multi-level queues to 0(NULL).
+    // Initialises sched_active to 0 which makes q[0] as the active queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void sched_insert(struct proc* p,int active){}
+    // Computes the dynamic priority of the process p using the heuristic.
+    // Adds the process p to the corresponding active priority queue
+    // if active is 1 otherwise to the corresponding passive queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    struct proc* sched_get(){}
+    // Finds the non-empty queue with highest priority in active multi-queue
+    // and returns the first process in it. If active queue is empty, make
+    // passive queue active and search again.
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/syscall.h}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    // Added following entries for system calls
+    #define SYS_setpriority  22
+    #define SYS_getpriority  23
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/syscall.c}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    // Added following entries for system calls
+    extern uint64 sys_setpriority(void);
+    extern uint64 sys_getpriority(void);
+    [SYS_setpriority]   sys_setpriority,
+    [SYS_getpriority]   sys_getpriority,
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/main.c}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    sched_init();	   // Initializing Scheduler structures
+                            // Added call to sched_init()
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/exec.c}
+\begin{enumerate}
+    \item[-]
+    Added code to support \texttt{-nice} argument through shell
+\end{enumerate}
+
+\texttt{kernel/proc.h} : Added following fields in struct proc
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    uint64 priority;            // Static priority of a process
+    uint64 dynamic_priority;    // Dynamic priority of a process
+    struct proc* next;          // Next proc in the linked list
+    int last_queue;             // Last proc in its linked list
+    uint64 running_since;       // MTIME stored here before scheduling
+    uint64 sleeping_since;      // MTIME stored here before sleeping
+    uint64 total_runtime;       // Total time on CPU since forking
+    uint64 total_sleeptime;     // Total time slept after forking
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/proc.c}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    static struct proc* allocproc(void){}
+    // Initialising the process’s priority, total_runtime, total_sleeptime.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void userinit(void){} 
+    // Call sched_insert for inserting first process into active run queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    int fork(void){}
+    // Call sched_insert for inserting newly created process into active queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void exit(int status){}
+    // Update process's total_runtime.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void scheduler(void){}
+    // Fetch next process via sched_get(). Configure timer based on dynamic 
+    // priority of process. Update process's running_since to MTIME.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void yield(void){}
+    // Update process's total_runtime. 
+    // Call sched_insert() to add process to passive queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void sleep(void *chan, struct spinlock *lk){}
+    // Update process's total_runtime. Set sleeping_since to MTIME.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    void wakeup(void *chan){}
+    // Update process's total_sleeptime. 
+    // Call sched_insert() to add process to active queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    static void wakeup1(struct proc* p){}
+    // Update process's total_sleeptime. 
+    // Call sched_insert() to add process to active queue.
+    \end{minted}
+    \item[-]\begin{minted}{C}
+    int kill(int pid){}
+    // Update process's total_sleeptime. 
+    // Call sched_insert() to add process to active queue.
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/sysproc.c}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    // Added definitions for new system calls
+    uint64 sys_setpriority(void){}
+    uint64 sys_getpriority(void){}
+    \end{minted}
+\end{enumerate}
+
+\texttt{kernel/defs.h}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    // Added signatures of following functions corresponding to sched.c
+    void sched_init(void);
+    void sched_insert(struct proc*,int);
+    struct proc* sched_get();
+    \end{minted}
+\end{enumerate}
+
+\texttt{user/user.h}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    // Added following system call signatures
+    int setpriority(int);       // Set static priority of self
+    int getpriority(void);      // Get current dynamic priority of self
+    \end{minted}
+\end{enumerate}
+
+\texttt{user/usys.pl}
+\begin{enumerate}
+    \item[-]\begin{minted}{C}
+    // Added following entries for system calls
+    entry("setpriority");       // Stubs code for setpriority system call
+    entry("getpriority");       // Stubs code for getpriority system call
+    \end{minted}
+\end{enumerate}
+
+\texttt{Makefile}
+\begin{enumerate}
+    \item[-]\begin{minted}{make}
+    $ K/sched.o \           # Added entry for compiling sched.c
+    \end{minted}
+\end{enumerate}
+
+\vspace{10mm}
+
+%%%%%%%%%%%%%%%%%
+%   Section 6   %
+%%%%%%%%%%%%%%%%%
+\section{References}
+\begin{enumerate}
+    \item 
+    \href{https://en.wikipedia.org/wiki/O(1)_scheduler}{O(1) Scheduler - Wikipedia}
+    \item
+    \href{https://ieeexplore.ieee.org/document/7280991}{On the Fairness of Linux O(1) Scheduler - IEEE Conference Publication}
+\end{enumerate}
+
+\end{document}
