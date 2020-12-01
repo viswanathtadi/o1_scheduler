@@ -56,9 +56,6 @@ sched_insert(struct proc* curp,int active)
 		index = 1 - curp->last_queue;
 	}
 	release(&queue.lock_active);
-	
-	//printf("PID : %d , Queue : %d\n",curp->pid,p);
-	
 	acquire(&queue.lock[index][p]);
 	if(queue.q[index][p]==0)
 	{
