@@ -55,7 +55,6 @@ sched_insert(struct proc* curp,int active)
 	{
 		index = 1 - curp->last_queue;
 	}
-	release(&queue.lock_active);
 	acquire(&queue.lock[index][p]);
 	if(queue.q[index][p]==0)
 	{
@@ -67,6 +66,7 @@ sched_insert(struct proc* curp,int active)
 		queue.qlast[index][p]->next=curp;
 		queue.qlast[index][p]=curp;
 	}
+	release(&queue.lock_active);
 	release(&queue.lock[index][p]);
 }
 
@@ -116,6 +116,7 @@ sched_get()
 		release(&queue.lock[queue.sched_active][i]);
 	}
 	
+	queue.sched_active = 1 - queue.sched_active;
 	release(&queue.lock_active);
 	goto sched_L;
 }
