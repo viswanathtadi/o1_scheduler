@@ -7,7 +7,7 @@ int main(int argc, char* argv[]) {
 	while(i < 20){
 		int pid = fork();
 		if(pid==0){
-			setpriority(20-i);
+			setpriority(i);
 			int pid2 = fork();
 			if(pid2 == 0){
 				exit(0);
@@ -19,6 +19,6 @@ int main(int argc, char* argv[]) {
 		}
 		i +=1;
 	}
-	printf("%d\n",getpid());
+	printf("Parent PID : %d\n",getpid());
 	exit(0);
 }
